@@ -10,6 +10,7 @@ public:
 	static void init();
 
 	static bool isWall(int x, int y);
+	static bool isHouse(int x, int y);
 
 	static const std::vector<std::string>& getMap();
 

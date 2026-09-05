@@ -14,11 +14,15 @@ public:
 	float getAngle() const;
 
 private:
+	bool canMove(float x, float y) const;
+
 	sf::Vector2f _position;
 
 	float _angle;
 	float _moveSpeed;
 	float _rotationSpeed;
+
+	float _radius;
 };
 
 #endif // !PLAYER_H

@@ -1,4 +1,5 @@
-#include <cmath>
+﻿#include <cmath>
+#include <iostream>
 
 #include "../include/Game.h"
 #include "../include/Config.h"
@@ -8,19 +9,19 @@ Game::Game()
         sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT),
         "VoxelRay"
     ),
-    _player(400.0f, 300.0f),
+    _player(200.0f, 200.0f),
     _renderer(SCREEN_WIDTH, SCREEN_HEIGHT),
-    _raycaster(_renderer)
+    _raycaster(_renderer),
+    _treeLoaded(false)
 {
     _window.setFramerateLimit(144);
 
-    Map::init();
+    _treeLoaded = _treeImage.loadFromFile("assets/tree.png");
 
-    _trees.emplace_back(600.0f, 300.0f);
-    _trees.emplace_back(800.0f, 400.0f);
-    _trees.emplace_back(500.0f, 600.0f);
-    _trees.emplace_back(900.0f, 200.0f);
-    _trees.emplace_back(200.0f, 500.0f);
+    if (!_treeLoaded)
+    {
+        std::cout << "Failed to load tree.png\n";
+    }
 }
 
 void Game::run()
@@ -49,100 +50,213 @@ void Game::run()
 void Game::update(float deltaTime)
 {
     _player.update(deltaTime);
+    _world.update(deltaTime);
 }
 
 void Game::renderTrees()
 {
+    if (!_treeLoaded)
+        return;
+
     sf::Vector2f playerPos = _player.getPosition();
 
     float playerAngle = _player.getAngle();
 
+    const std::vector<float>& depthBuffer = _raycaster.getDepthBuffer();
+
     const int horizon = SCREEN_HEIGHT / 2;
 
-    for (const Tree& tree : _trees)
+    // Original image dimensions
+    unsigned int imageWidth =
+        _treeImage.getSize().x;
+
+    unsigned int imageHeight =
+        _treeImage.getSize().y;
+
+
+    for (const Tree& tree : _world.getTrees())
     {
-        sf::Vector2f treePos = tree.getPosition();
+        sf::Vector2f treePos =
+            tree.getPosition();
 
-        //Vector from player to tree
-        float dx = treePos.x - playerPos.x;
-        float dy = treePos.y - playerPos.y;
 
-        //Distance to tree
-        float distance = std::sqrt(dx * dx + dy * dy);
+        // =========================
+        // VECTOR TO TREE
+        // =========================
 
-        //Angle towards the tree
-        float treeAngle = std::atan2(dy, dx);
+        float dx =
+            treePos.x - playerPos.x;
 
-        //Angle difference from camera
-        float angleDifference = treeAngle - playerAngle;
+        float dy =
+            treePos.y - playerPos.y;
 
-        //Normalize angle
+
+        float distance =
+            std::sqrt(dx * dx + dy * dy);
+
+
+        // Don't divide by zero
+        if (distance < 1.0f)
+            distance = 1.0f;
+
+
+        // =========================
+        // TREE ANGLE
+        // =========================
+
+        float treeAngle =
+            std::atan2(dy, dx);
+
+        float angleDifference =
+            treeAngle - playerAngle;
+
+
+        // Normalize angle
         while (angleDifference > PI)
-        {
             angleDifference -= 2.0f * PI;
-        }
 
         while (angleDifference < -PI)
-        {
             angleDifference += 2.0f * PI;
-        }
 
-        //Dont render trees outside the FOV
-        if (std::abs(angleDifference) > FOV / 2.0f)
+        float correctedTreeDistance = distance * std::cos(angleDifference);
+
+
+        // Outside camera view
+        if (std::abs(angleDifference) >
+            FOV / 2.0f)
         {
             continue;
         }
 
-        //Project Tree on Screen
 
-        //Convert angle to screen X position
-        float screenX = (angleDifference + FOV / 2.0f) / FOV * SCREEN_WIDTH;
+        // =========================
+        // SCREEN POSITION
+        // =========================
 
-        //Perspective size
-        float treeHeight = 8000.0f / distance;
+        float screenX =
+           (angleDifference + FOV / 2.0f)
+           / FOV
+          * SCREEN_WIDTH;
 
-        float treeWidth = treeHeight * 0.6f;
 
-        //Prevent extremely large trees
+        // =========================
+        // PERSPECTIVE SCALE
+        // =========================
+
+        float treeHeight =
+           25000.0f / correctedTreeDistance;
+
+        float aspectRatio =
+            static_cast<float>(imageWidth) /
+            static_cast<float>(imageHeight);
+
+        float treeWidth =
+            treeHeight * aspectRatio;
+
+
+        // Limit maximum size
         if (treeHeight > SCREEN_HEIGHT * 2)
         {
             treeHeight = SCREEN_HEIGHT * 2;
+
+            treeWidth =
+                treeHeight * aspectRatio;
         }
 
-        //Tree bottom sits on horizon/ground
-        float treeBottom = horizon + treeHeight / 2.0f;
-        float treeTop = treeBottom - treeHeight;
 
-        float treeLeft = screenX - treeWidth / 2.0f;
+        // =========================
+        // TREE POSITION
+        // =========================
 
-        //Draw tree
-        for (int y = static_cast<int>(treeTop); y < static_cast<int>(treeBottom); y++)
+        // Bottom of tree sits on ground
+        float treeBottom =
+            horizon + treeHeight / 2.0f;
+
+        float treeTop =
+            treeBottom - treeHeight;
+
+        float treeLeft =
+            screenX - treeWidth / 2.0f;
+
+
+        // =========================
+        // DRAW SPRITE
+        // =========================
+
+        for (int y = 0;
+            y < static_cast<int>(treeHeight);
+            y++)
         {
-            if (y < 0 || y >= SCREEN_HEIGHT)
-                continue;
+            int screenY =
+                static_cast<int>(treeTop) + y;
 
-            for (int x = static_cast<int>(treeLeft); x < static_cast<int>(treeLeft + treeWidth); x++)
+            if (screenY < 0 ||
+                screenY >= SCREEN_HEIGHT)
             {
-                if (x < 0 || x >= SCREEN_WIDTH)
+                continue;
+            }
+
+
+            // Convert screen Y → image Y
+            unsigned int textureY =
+                static_cast<unsigned int>(
+                    (static_cast<float>(y) /
+                        treeHeight) *
+                    imageHeight
+                    );
+
+            if (textureY >= imageHeight)
+                textureY = imageHeight - 1;
+
+
+            for (int x = 0;
+                x < static_cast<int>(treeWidth);
+                x++)
+            {
+                int screenXPixel =
+                    static_cast<int>(treeLeft) + x;
+
+                if (screenXPixel < 0 ||
+                    screenXPixel >= SCREEN_WIDTH)
+                {
                     continue;
-
-                float normalizedY = (y - treeTop) / treeHeight;
-
-                //Top = leaves
-                if (normalizedY < 0.70f)
-                {
-                    _renderer.setPixel(x, y, sf::Color(30, 120, 40));
                 }
-                else
-                {
-                    //Bottom = trunk
-                    float center = screenX;
-                    float trunkWidth = treeWidth * 0.25f;
 
-                    if (x > center - trunkWidth / 2 &&
-                        x < center + trunkWidth / 2)
+
+                // Convert screen X → image X
+                unsigned int textureX =
+                    static_cast<unsigned int>(
+                        (static_cast<float>(x) /
+                            treeWidth) *
+                        imageWidth
+                        );
+
+                if (textureX >= imageWidth)
+                    textureX = imageWidth - 1;
+
+
+                sf::Color pixel =
+                    _treeImage.getPixel(
+                        textureX,
+                        textureY
+                    );
+
+
+                // Draw only visible pixels
+                if (pixel.a > 10)
+                {
+                    // Check if the tree is closer
+                    // than the wall at this screen column
+
+                    const float DEPTH_BIAS = 1.0f;
+
+                    if (correctedTreeDistance < depthBuffer[screenXPixel] - DEPTH_BIAS)
                     {
-                        _renderer.setPixel(x, y, sf::Color(100, 60, 20));
+                        _renderer.setPixel(
+                            screenXPixel,
+                            screenY,
+                            pixel
+                        );
                     }
                 }
             }

@@ -2,13 +2,12 @@
 #define GAME_H
 
 #include <SFML/Graphics.hpp>
-#include <vector>
 
 #include "Player.h"
 #include "Renderer.h"
-#include "Tree.h"
 #include "Map.h"
 #include "Raycaster.h"
+#include "World.h"
 
 class Game
 {
@@ -25,13 +24,17 @@ private:
 
     sf::RenderWindow _window;
 
-    Player _player;
+    Player    _player;
 
-    Renderer _renderer;
+    Renderer  _renderer;
 
     Raycaster _raycaster;
 
-    std::vector<Tree> _trees;
+    World     _world;
+
+    sf::Image _treeImage;
+
+    bool _treeLoaded;
 };
 
 #endif

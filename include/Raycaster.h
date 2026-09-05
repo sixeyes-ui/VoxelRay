@@ -2,6 +2,7 @@
 #define RAYCASTER_H
 
 #include <SFML/System.hpp>
+#include <vector>
 
 class Renderer;
 
@@ -15,8 +16,12 @@ public:
         float angle
     );
 
+    const std::vector<float>& getDepthBuffer() const;
+
 private:
     Renderer& _renderer;
+
+    std::vector<float> _depthBuffer;
 };
 
 #endif

@@ -9,6 +9,12 @@
 Raycaster::Raycaster(Renderer& renderer)
     : _renderer(renderer)
 {
+    _depthBuffer.resize(SCREEN_WIDTH);
+}
+
+const std::vector<float>& Raycaster::getDepthBuffer() const
+{
+    return _depthBuffer;
 }
 
 void Raycaster::castRays(
@@ -171,6 +177,7 @@ void Raycaster::castRays(
         if (distance < 0.1f)
             distance = 0.1f;
 
+        _depthBuffer[ray] = distance;
 
         // =========================
         // PROJECT WALL
@@ -193,6 +200,20 @@ void Raycaster::castRays(
                 wallHeight / 2.0f
                 );
 
+        float wallX;
+
+        if (side == 0)
+        {
+            wallX = position.y + distance * rayDirY;
+        }
+        else
+        {
+            wallX = position.x + distance * rayDirX;
+        }
+
+        wallX /= Map::TILE_SIZE;
+
+        wallX -= std::floor(wallX);
 
         // =========================
         // DRAW WALL COLUMN
@@ -200,17 +221,29 @@ void Raycaster::castRays(
 
         sf::Color wallColor;
 
-        if (side == 0)
+        bool isHouse = Map::isHouse(mapX, mapY);
+
+        if (isHouse)
         {
-            wallColor =
-                sf::Color(170, 100, 50);
+            if (side == 0)
+            {
+                wallColor = sf::Color(190, 120, 70);
+            }
+            else
+            {
+                wallColor = sf::Color(135, 80, 45);
+            }
         }
         else
         {
-            // Darker side for fake lighting
-
-            wallColor =
-                sf::Color(120, 70, 35);
+            if (side == 0)
+            {
+                wallColor = sf::Color(100, 100, 100);
+            }
+            else
+            {
+                wallColor = sf::Color(70, 70, 70);
+            }
         }
 
 
@@ -218,15 +251,37 @@ void Raycaster::castRays(
             y < wallBottom;
             y++)
         {
-            if (y >= 0 &&
-                y < SCREEN_HEIGHT)
+            if (y < 0 || y >= SCREEN_HEIGHT)
+                continue;
+
+            sf::Color pixelColor = wallColor;
+
+            if (isHouse)
             {
-                _renderer.setPixel(
-                    ray,
-                    y,
-                    wallColor
-                );
+                float wallY = static_cast<float>(y - wallTop) / static_cast<float>(wallBottom - wallTop);
+
+                if (wallY < 0.18f)
+                {
+                    pixelColor = sf::Color(100, 45, 30);
+                }
+
+                if (wallX > 0.40f && wallX < 0.60f &&
+                    wallY > 0.45f)
+                {
+                    pixelColor = sf::Color(80, 45, 25);
+                }
+
+                if (wallY > 0.25f && wallY < 0.55f)
+                {
+                    if ((wallX > 0.15f && wallX < 0.32f) ||
+                        (wallX > 0.68f && wallX < 0.85f))
+                    {
+                        pixelColor = sf::Color(70, 150, 190);
+                    }
+                }
             }
+
+            _renderer.setPixel(ray, y, pixelColor);
         }
 
 
