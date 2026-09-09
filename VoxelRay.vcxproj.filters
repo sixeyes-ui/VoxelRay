@@ -42,6 +42,12 @@
     <ClCompile Include="src\House.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\HouseRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Rock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Config.h">
@@ -71,9 +77,18 @@
     <ClInclude Include="include\House.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\HouseRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Rock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\tree.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="assets\wall.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

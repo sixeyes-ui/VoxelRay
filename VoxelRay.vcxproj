@@ -136,11 +136,13 @@
   <ItemGroup>
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\House.cpp" />
+    <ClCompile Include="src\HouseRenderer.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Map.cpp" />
     <ClCompile Include="src\Player.cpp" />
     <ClCompile Include="src\Raycaster.cpp" />
     <ClCompile Include="src\Renderer.cpp" />
+    <ClCompile Include="src\Rock.cpp" />
     <ClCompile Include="src\Tree.cpp" />
     <ClCompile Include="src\World.cpp" />
   </ItemGroup>
@@ -148,15 +150,18 @@
     <ClInclude Include="include\Config.h" />
     <ClInclude Include="include\Game.h" />
     <ClInclude Include="include\House.h" />
+    <ClInclude Include="include\HouseRenderer.h" />
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\Player.h" />
     <ClInclude Include="include\Raycaster.h" />
     <ClInclude Include="include\Renderer.h" />
+    <ClInclude Include="include\Rock.h" />
     <ClInclude Include="include\Tree.h" />
     <ClInclude Include="include\World.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="assets\tree.png" />
+    <Image Include="assets\wall.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

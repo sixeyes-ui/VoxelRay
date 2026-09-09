@@ -8,6 +8,7 @@
 #include "Map.h"
 #include "Raycaster.h"
 #include "World.h"
+#include "HouseRenderer.h"
 
 class Game
 {
@@ -21,6 +22,7 @@ private:
     void render();
 
     void renderTrees();
+    void renderRocks();
 
     sf::RenderWindow _window;
 
@@ -31,6 +33,8 @@ private:
     Raycaster _raycaster;
 
     World     _world;
+
+    HouseRenderer _houseRenderer;
 
     sf::Image _treeImage;
 

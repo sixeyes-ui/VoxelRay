@@ -2,6 +2,7 @@
 #define RAYCASTER_H
 
 #include <SFML/System.hpp>
+#include <SFML/Graphics.hpp>
 #include <vector>
 
 class Renderer;
@@ -22,6 +23,9 @@ private:
     Renderer& _renderer;
 
     std::vector<float> _depthBuffer;
+
+    sf::Image _houseTexture;
+    bool _houseTextureLoaded;
 };
 
 #endif

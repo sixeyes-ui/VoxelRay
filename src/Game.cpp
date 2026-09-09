@@ -12,6 +12,8 @@ Game::Game()
     _player(200.0f, 200.0f),
     _renderer(SCREEN_WIDTH, SCREEN_HEIGHT),
     _raycaster(_renderer),
+    _world(),
+    _houseRenderer(_renderer),
     _treeLoaded(false)
 {
     _window.setFramerateLimit(144);
@@ -264,6 +266,139 @@ void Game::renderTrees()
     }
 }
 
+void Game::renderRocks()
+{
+    const auto& rocks = _world.getRocks();
+    const auto& depthBuffer = _raycaster.getDepthBuffer();
+
+    sf::Vector2f playerPosition = _player.getPosition();
+
+    float playerAngle = _player.getAngle();
+
+    for (const Rock& rock : rocks)
+    {
+        sf::Vector2f rockPosition = rock.getPosition();
+
+        float dx = rockPosition.x - playerPosition.x;
+
+        float dy = rockPosition.y - playerPosition.y;
+
+        float distance = std::sqrt(dx * dx + dy * dy);
+
+        if (distance < 1.0f)
+            continue;
+
+        float rockAngle = std::atan2(dy, dx);
+
+        float angleDifference = rockAngle - playerAngle;
+
+        //keep angle between -PI and +PI
+        while (angleDifference > PI)
+            angleDifference -= 2.0f * PI;
+
+        while (angleDifference < -PI)
+            angleDifference += 2.0f * PI;
+
+        // Outside the player's view
+        if (std::abs(angleDifference) > FOV / 2.0f)
+            continue;
+
+        //Correct distance for fisheye
+        float correctedDistance = distance * std::cos(angleDifference);
+
+        if (correctedDistance <= 0.1f)
+            continue;
+
+        //Horizontal screen position;
+        float screenX = ((angleDifference + FOV / 2.0f) / FOV) * SCREEN_WIDTH;
+
+        int centerX = static_cast<int>(screenX);
+
+        if (centerX < 0 ||
+            centerX >= SCREEN_WIDTH)
+            continue;
+
+        const int horizon = SCREEN_HEIGHT / 2;
+
+        // Physical size of the rock in world units
+        float rockWorldHeight = 24.0f;
+
+        //Rock size
+        float rockHeight =
+            (rockWorldHeight * 500.0f) /
+            correctedDistance;
+        float rockWidth = rockHeight * 1.3f;
+        // Where the ground is at this distance
+        float rockBottom =
+            horizon +
+            (CAMERA_HEIGHT * 500.0f) /
+            correctedDistance + 5.0f;
+        float rockTop = rockBottom - rockHeight;
+        int left = static_cast<int>(screenX - rockWidth / 2.0f);
+        int right = static_cast<int>(screenX + rockWidth / 2.0f);
+
+        int topPixel = static_cast<int>(rockTop);
+        int bottomPixel = static_cast<int>(rockBottom);
+
+        for (int y = topPixel; y <= bottomPixel; y++)
+        {
+            if (y < 0 || y >= SCREEN_HEIGHT)
+                continue;
+
+            for (int x = left; x <= right; x++)
+            {
+                if (x < 0 || x >= SCREEN_WIDTH)
+                    continue;
+
+                //Convert pixel to -1..1
+                float nx =
+                    (x - screenX) /
+                    (rockWidth / 2.0f);
+
+                float ny =
+                    (y - (rockTop + rockHeight / 2.0f)) /
+                    (rockHeight / 2.0f);
+
+                // Ellipse shape
+                if (nx * nx + ny * ny > 1.0f)
+                    continue;
+
+                // Depth test against walls
+                if (correctedDistance >
+                    depthBuffer[x] + 2.0f)
+                {
+                    continue;
+                }
+
+                // Simple pixel-art shading
+                sf::Color rockColor;
+
+                if (ny < -0.3f)
+                {
+                    rockColor =
+                        sf::Color(130, 130, 130);
+                }
+                else if (ny < 0.3f)
+                {
+                    rockColor =
+                        sf::Color(100, 100, 100);
+                }
+                else
+                {
+                    rockColor =
+                        sf::Color(65, 65, 65);
+                }
+
+                _renderer.setPixel(
+                    x,
+                    y,
+                    rockColor
+                );
+            }
+        }
+    }
+}
+
 void Game::render()
 {
     _renderer.clear(sf::Color::Black);
@@ -332,6 +467,19 @@ void Game::render()
 
     _raycaster.castRays(_player.getPosition(), _player.getAngle());
 
+    const std::vector<float>& depthBuffer =
+        _raycaster.getDepthBuffer();
+
+    for (const House& house : _world.getHouses())
+    {
+        _houseRenderer.render(
+            house,
+            _player,
+            depthBuffer
+        );
+    }
+
+    renderRocks();
     renderTrees();
 
     _renderer.display(_window);

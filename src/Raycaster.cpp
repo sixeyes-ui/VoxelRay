@@ -4,12 +4,21 @@
 #include "../include/Map.h"
 #include "../include/Renderer.h"
 
+#include <iostream>
 #include <cmath>
 
 Raycaster::Raycaster(Renderer& renderer)
-    : _renderer(renderer)
+    : _renderer(renderer),
+      _houseTextureLoaded(false)
 {
     _depthBuffer.resize(SCREEN_WIDTH);
+
+    _houseTextureLoaded = _houseTexture.loadFromFile("assets/wall.png");
+
+    if (!_houseTextureLoaded)
+    {
+        std::cout << "Failed to load wall.png\n";
+    }
 }
 
 const std::vector<float>& Raycaster::getDepthBuffer() const
@@ -148,31 +157,25 @@ void Raycaster::castRays(
         // DISTANCE TO WALL
         // =========================
 
-        float distance;
+        float rawDistance;
 
         if (side == 0)
         {
-            distance =
+            rawDistance =
                 sideDistX - deltaDistX;
         }
         else
         {
-            distance =
+            rawDistance =
                 sideDistY - deltaDistY;
         }
 
-
-        // =========================
-        // FISHEYE CORRECTION
-        // =========================
-
+        // Distance used for projection/depth
         float angleDifference =
             rayAngle - playerAngle;
 
-        distance *= std::cos(angleDifference);
-
-
-        // Avoid division by zero
+        float distance =
+            rawDistance * std::cos(angleDifference);
 
         if (distance < 0.1f)
             distance = 0.1f;
@@ -204,11 +207,11 @@ void Raycaster::castRays(
 
         if (side == 0)
         {
-            wallX = position.y + distance * rayDirY;
+            wallX = position.y + rawDistance * rayDirY;
         }
         else
         {
-            wallX = position.x + distance * rayDirX;
+            wallX = position.x + rawDistance * rayDirX;
         }
 
         wallX /= Map::TILE_SIZE;
@@ -219,31 +222,16 @@ void Raycaster::castRays(
         // DRAW WALL COLUMN
         // =========================
 
-        sf::Color wallColor;
-
         bool isHouse = Map::isHouse(mapX, mapY);
 
-        if (isHouse)
+        sf::Color wallColor;
+
+        if (!isHouse)
         {
             if (side == 0)
-            {
-                wallColor = sf::Color(190, 120, 70);
-            }
-            else
-            {
-                wallColor = sf::Color(135, 80, 45);
-            }
-        }
-        else
-        {
-            if (side == 0)
-            {
                 wallColor = sf::Color(100, 100, 100);
-            }
             else
-            {
                 wallColor = sf::Color(70, 70, 70);
-            }
         }
 
 
@@ -254,34 +242,68 @@ void Raycaster::castRays(
             if (y < 0 || y >= SCREEN_HEIGHT)
                 continue;
 
-            sf::Color pixelColor = wallColor;
+            sf::Color pixelColor;
 
-            if (isHouse)
+            if (isHouse && _houseTextureLoaded)
             {
-                float wallY = static_cast<float>(y - wallTop) / static_cast<float>(wallBottom - wallTop);
+                // Horizontal texture coordinate
+                int textureX =
+                    static_cast<int>(
+                        wallX * _houseTexture.getSize().x
+                        );
 
-                if (wallY < 0.18f)
-                {
-                    pixelColor = sf::Color(100, 45, 30);
-                }
+                // Vertical texture coordinate
+                float wallPosition =
+                    static_cast<float>(y - wallTop) /
+                    wallHeight;
 
-                if (wallX > 0.40f && wallX < 0.60f &&
-                    wallY > 0.45f)
-                {
-                    pixelColor = sf::Color(80, 45, 25);
-                }
+                int textureY =
+                    static_cast<int>(
+                        wallPosition *
+                        _houseTexture.getSize().y
+                        );
 
-                if (wallY > 0.25f && wallY < 0.55f)
+                // Safety
+                if (textureX < 0)
+                    textureX = 0;
+
+                if (textureX >=
+                    static_cast<int>(_houseTexture.getSize().x))
+                    textureX =
+                    _houseTexture.getSize().x - 1;
+
+                if (textureY < 0)
+                    textureY = 0;
+
+                if (textureY >=
+                    static_cast<int>(_houseTexture.getSize().y))
+                    textureY =
+                    _houseTexture.getSize().y - 1;
+
+                pixelColor =
+                    _houseTexture.getPixel(
+                        textureX,
+                        textureY
+                    );
+
+                // Make the side walls darker
+                if (side == 1)
                 {
-                    if ((wallX > 0.15f && wallX < 0.32f) ||
-                        (wallX > 0.68f && wallX < 0.85f))
-                    {
-                        pixelColor = sf::Color(70, 150, 190);
-                    }
+                    pixelColor.r *= 0.7f;
+                    pixelColor.g *= 0.7f;
+                    pixelColor.b *= 0.7f;
                 }
             }
+            else
+            {
+                pixelColor = wallColor;
+            }
 
-            _renderer.setPixel(ray, y, pixelColor);
+            _renderer.setPixel(
+                ray,
+                y,
+                pixelColor
+            );
         }
 
 
