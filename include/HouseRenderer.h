@@ -15,7 +15,8 @@ public:
 
     void render(
         const House& house,
-        const Player& player,
+        const sf::Vector2f& cameraPosition,
+        float cameraAngle,
         const std::vector<float>& depthBuffer
     );
 

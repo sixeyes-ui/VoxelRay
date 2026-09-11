@@ -15,11 +15,12 @@ HouseRenderer::HouseRenderer(Renderer& renderer)
 
 void HouseRenderer::render(
     const House& house,
-    const Player& player,
+    const sf::Vector2f& camearPosition,
+    float cameraAngle,
     const std::vector<float>& depthBuffer)
 {
-    sf::Vector2f playerPos = player.getPosition();
-    float playerAngle = player.getAngle();
+    sf::Vector2f playerPos = camearPosition;
+    float playerAngle = cameraAngle;
 
     // =========================================
     // FUNCTION TO DRAW A WINDOW

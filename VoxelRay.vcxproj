@@ -160,7 +160,9 @@
     <ClInclude Include="include\World.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="assets\Player.png" />
     <Image Include="assets\tree.png" />
+    <Image Include="assets\UFrame.png" />
     <Image Include="assets\wall.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

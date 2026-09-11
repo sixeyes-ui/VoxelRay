@@ -23,6 +23,7 @@ private:
 
     void renderTrees();
     void renderRocks();
+    void renderPlayer();
 
     sf::RenderWindow _window;
 
@@ -37,6 +38,14 @@ private:
     HouseRenderer _houseRenderer;
 
     sf::Image _treeImage;
+
+    sf::Image _playerImage;
+    bool _playerLoaded;
+
+    sf::Vector2f _cameraPosition;
+    float        _cameraDistance;
+
+    float        _angle;
 
     bool _treeLoaded;
 };

@@ -24,6 +24,16 @@ Game::Game()
     {
         std::cout << "Failed to load tree.png\n";
     }
+
+    _playerLoaded = _playerImage.loadFromFile("assets/UFrame.png");
+
+    if (!_playerLoaded)
+    {
+        std::cout << "Failed to load player.png\n";
+    }
+
+    _cameraDistance = 150.0f;
+    _cameraPosition = _player.getPosition();
 }
 
 void Game::run()
@@ -53,6 +63,11 @@ void Game::update(float deltaTime)
 {
     _player.update(deltaTime);
     _world.update(deltaTime);
+
+    _angle = _player.getAngle();
+
+    _cameraPosition.x = _player.getPosition().x - std::cos(_angle) * _cameraDistance;
+    _cameraPosition.y = _player.getPosition().y - std::sin(_angle) * _cameraDistance;
 }
 
 void Game::renderTrees()
@@ -399,6 +414,174 @@ void Game::renderRocks()
     }
 }
 
+void Game::renderPlayer()
+{
+    if (!_playerLoaded)
+        return;
+
+    const std::vector<float>& depthBuffer = _raycaster.getDepthBuffer();
+
+    sf::Vector2f playerPosition = _player.getPosition();
+
+    // VECTOR FROM CAMERA TO PLAYER
+
+    float dx = playerPosition.x - _cameraPosition.x;
+    float dy = playerPosition.y - _cameraPosition.y;
+
+    float distance = std::sqrt(dx * dx + dy * dy);
+    if (distance < 1.0f)
+        return;
+
+    // ANGLE TO PLAYER
+
+    float playerWorldAngle =
+        std::atan2(dy, dx);
+
+    float angleDifference =
+        playerWorldAngle - _angle;
+
+    // Normalize angle
+    while (angleDifference > PI)
+        angleDifference -= 2.0f * PI;
+
+    while (angleDifference < -PI)
+        angleDifference += 2.0f * PI;
+
+    // OUTSIDE CAMERA
+    if (std::abs(angleDifference) > FOV / 2.0f)
+        return;
+
+    // FISHEYE CORRECTION
+    float correctedDistance =
+        distance * std::cos(angleDifference);
+
+    if (correctedDistance <= 0.1f)
+        return;
+
+    // SCREEN X
+    float screenX =
+        ((angleDifference + FOV / 2.0f) / FOV)
+        * SCREEN_WIDTH;
+
+    // PLAYER SIZE
+    const float playerWorldHeight = 64.0f;
+
+    float playerHeight =
+        (playerWorldHeight * 500.0f)
+        / correctedDistance;
+
+    float imageWidth =
+        static_cast<float>(_playerImage.getSize().x);
+
+    float imageHeight =
+        static_cast<float>(_playerImage.getSize().y);
+
+    float aspectRatio =
+        imageWidth / imageHeight;
+
+    float playerWidth =
+        playerHeight * aspectRatio;
+
+    // Don't let the player become enormous
+    if (playerHeight > SCREEN_HEIGHT * 2)
+    {
+        playerHeight = SCREEN_HEIGHT * 2;
+
+        playerWidth =
+            playerHeight * aspectRatio;
+    }
+
+    // GROUND POSITION
+    const int horizon =
+        SCREEN_HEIGHT / 2;
+
+    float playerBottom =
+        horizon +
+        (CAMERA_HEIGHT * 500.0f)
+        / correctedDistance;
+
+    float playerTop =
+        playerBottom - playerHeight;
+
+    float playerLeft =
+        screenX - playerWidth / 2.0f;
+
+    // DRAW SPRITE
+    for (int y = 0;
+        y < static_cast<int>(playerHeight);
+        y++)
+    {
+        int screenY =
+            static_cast<int>(playerTop) + y;
+
+        if (screenY < 0 ||
+            screenY >= SCREEN_HEIGHT)
+        {
+            continue;
+        }
+
+        unsigned int textureY =
+            static_cast<unsigned int>(
+                (static_cast<float>(y) /
+                    playerHeight)
+                * imageHeight
+                );
+
+        if (textureY >= imageHeight)
+            textureY = imageHeight - 1;
+
+        for (int x = 0;
+            x < static_cast<int>(playerWidth);
+            x++)
+        {
+            int screenXPixel =
+                static_cast<int>(playerLeft) + x;
+
+            if (screenXPixel < 0 ||
+                screenXPixel >= SCREEN_WIDTH)
+            {
+                continue;
+            }
+
+            unsigned int textureX =
+                static_cast<unsigned int>(
+                    (static_cast<float>(x) /
+                        playerWidth)
+                    * imageWidth
+                    );
+
+            if (textureX >= imageWidth)
+                textureX = imageWidth - 1;
+
+            sf::Color pixel =
+                _playerImage.getPixel(
+                    textureX,
+                    textureY
+                );
+
+            // Transparent pixels don't get drawn
+            if (pixel.a <= 10)
+                continue;
+
+            // =========================
+            // DEPTH TEST
+            // =========================
+
+            if (correctedDistance >
+                depthBuffer[screenXPixel] - 1.0f)
+            {
+                continue;
+            }
+
+            _renderer.setPixel(
+                screenXPixel,
+                screenY,
+                pixel
+            );
+        }
+    }
+}
+
 void Game::render()
 {
     _renderer.clear(sf::Color::Black);
@@ -417,7 +600,8 @@ void Game::render()
     }
 
     // Player Camera
-    sf::Vector2f playerPos = _player.getPosition();
+    //sf::Vector2f playerPos = _player.getPosition();
+    sf::Vector2f cameraPos = _cameraPosition;
 
     float playerAngle = _player.getAngle();
 
@@ -433,12 +617,18 @@ void Game::render()
         float distance = CAMERA_HEIGHT / static_cast<float>(y - horizon);
 
         // Left side of camera
-        float leftX = playerPos.x + std::cos(leftAngle) * distance;
-        float leftY = playerPos.y + std::sin(leftAngle) * distance;
+        //float leftX = playerPos.x + std::cos(leftAngle) * distance;
+        //float leftY = playerPos.y + std::sin(leftAngle) * distance;
 
         //Right side of camera
-        float rightX = playerPos.x + std::cos(rightAngle) * distance;
-        float rightY = playerPos.y + std::sin(rightAngle) * distance;
+        //float rightX = playerPos.x + std::cos(rightAngle) * distance;
+        //float rightY = playerPos.y + std::sin(rightAngle) * distance;
+
+        float leftX = cameraPos.x + std::cos(leftAngle) * distance;
+        float leftY = cameraPos.y + std::sin(leftAngle) * distance;
+
+        float rightX = cameraPos.x + std::cos(rightAngle) * distance;
+        float rightY = cameraPos.y + std::sin(rightAngle) * distance;
 
         for (int x = 0; x < SCREEN_WIDTH; x++)
         {
@@ -465,7 +655,7 @@ void Game::render()
         }
     }
 
-    _raycaster.castRays(_player.getPosition(), _player.getAngle());
+    _raycaster.castRays(_cameraPosition, _angle);
 
     const std::vector<float>& depthBuffer =
         _raycaster.getDepthBuffer();
@@ -474,13 +664,15 @@ void Game::render()
     {
         _houseRenderer.render(
             house,
-            _player,
+            _cameraPosition,
+            _angle,
             depthBuffer
         );
     }
 
     renderRocks();
     renderTrees();
+    renderPlayer();
 
     _renderer.display(_window);
 
