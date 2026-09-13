@@ -1,5 +1,6 @@
 ﻿#include <cmath>
 #include <iostream>
+#include <algorithm>
 
 #include "../include/Game.h"
 #include "../include/Config.h"
@@ -25,7 +26,7 @@ Game::Game()
         std::cout << "Failed to load tree.png\n";
     }
 
-    _playerLoaded = _playerImage.loadFromFile("assets/UFrame.png");
+    _playerLoaded = _playerTexture.loadFromFile("assets/newPlayer.png");
 
     if (!_playerLoaded)
     {
@@ -34,6 +35,64 @@ Game::Game()
 
     _cameraDistance = 150.0f;
     _cameraPosition = _player.getPosition();
+    _cameraAngle = _player.getAngle();
+    _cameraPitch = 0.0f;
+    _cameraSensitivity = 0.003f;
+    _pitchSensitivity = 0.15f;
+
+    _mouseCenter = sf::Vector2i(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+
+    sf::Mouse::setPosition(_mouseCenter, _window);
+    _window.setMouseCursorVisible(false);
+}
+
+sf::Vector2f Game::getSafeCameraPosition(
+    const sf::Vector2f& playerPosition,
+    const sf::Vector2f& desiredPosition)
+{
+    sf::Vector2f direction =
+        desiredPosition - playerPosition;
+
+    float distance =
+        std::sqrt(
+            direction.x * direction.x +
+            direction.y * direction.y
+        );
+
+    if (distance <= 0.0f)
+        return playerPosition;
+
+    direction /= distance;
+
+    float safeDistance = distance;
+
+    const float step = 5.0f;
+
+    for (float d = 0.0f; d < distance; d += step)
+    {
+        float x =
+            playerPosition.x + direction.x * d;
+
+        float y =
+            playerPosition.y + direction.y * d;
+
+        int mapX =
+            static_cast<int>(x / Map::TILE_SIZE);
+
+        int mapY =
+            static_cast<int>(y / Map::TILE_SIZE);
+
+        if (Map::isWall(mapX, mapY))
+        {
+            safeDistance = d - 10.0f;
+            break;
+        }
+    }
+
+    if (safeDistance < 20.0f)
+        safeDistance = 20.0f;
+
+    return playerPosition + direction * safeDistance;
 }
 
 void Game::run()
@@ -52,6 +111,11 @@ void Game::run()
             {
                 _window.close();
             }
+            else if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Escape)
+                    _window.close();
+            }
         }
 
         update(deltaTime);
@@ -61,13 +125,50 @@ void Game::run()
 
 void Game::update(float deltaTime)
 {
-    _player.update(deltaTime);
+    //Mouse camera
+    sf::Vector2i mousePosition =
+        sf::Mouse::getPosition(_window);
+
+    int mouseDeltaX = mousePosition.x - _mouseCenter.x;
+    int mouseDeltaY = mousePosition.y - _mouseCenter.y;
+    
+    _cameraAngle += mouseDeltaX * _cameraSensitivity;
+    _cameraPitch -= mouseDeltaY * _pitchSensitivity;
+
+    if (_cameraPitch > 300.0f)
+        _cameraPitch = 300.0f;
+
+    if (_cameraPitch < -300.0f)
+        _cameraPitch = -300.0f;
+
+    sf::Mouse::setPosition(_mouseCenter, _window);
+
+    // Player movement
+    _player.update(deltaTime, _cameraAngle);
     _world.update(deltaTime);
 
-    _angle = _player.getAngle();
+    // CAMERA POSITION
+    sf::Vector2f playerPos =
+        _player.getPosition();
 
-    _cameraPosition.x = _player.getPosition().x - std::cos(_angle) * _cameraDistance;
-    _cameraPosition.y = _player.getPosition().y - std::sin(_angle) * _cameraDistance;
+    // Camera follows the direction
+    // that the CAMERA is looking
+    sf::Vector2f cameraForward(
+        std::cos(_cameraAngle),
+        std::sin(_cameraAngle)
+    );
+
+    //Where the camera wants to be
+    sf::Vector2f desiredCameraPosition =
+        playerPos - cameraForward * _cameraDistance;
+
+    desiredCameraPosition = getSafeCameraPosition(playerPos, desiredCameraPosition);
+
+    //Smooth camera movement
+    float followSpeed = 8.0f;
+
+    float smooth = std::min(1.0f, followSpeed * deltaTime);
+    _cameraPosition += (desiredCameraPosition - _cameraPosition) * smooth;
 }
 
 void Game::renderTrees()
@@ -75,13 +176,16 @@ void Game::renderTrees()
     if (!_treeLoaded)
         return;
 
-    sf::Vector2f playerPos = _player.getPosition();
+    //sf::Vector2f playerPos = _player.getPosition();
+    sf::Vector2f cameraPos = _cameraPosition;
 
-    float playerAngle = _player.getAngle();
+    //float playerAngle = _player.getAngle();
+    float cameraAngle = _cameraAngle;
 
     const std::vector<float>& depthBuffer = _raycaster.getDepthBuffer();
 
-    const int horizon = SCREEN_HEIGHT / 2;
+    const float horizon =
+        SCREEN_HEIGHT / 2.0f + _cameraPitch;
 
     // Original image dimensions
     unsigned int imageWidth =
@@ -102,10 +206,10 @@ void Game::renderTrees()
         // =========================
 
         float dx =
-            treePos.x - playerPos.x;
+            treePos.x - cameraPos.x;
 
         float dy =
-            treePos.y - playerPos.y;
+            treePos.y - cameraPos.y;
 
 
         float distance =
@@ -125,7 +229,7 @@ void Game::renderTrees()
             std::atan2(dy, dx);
 
         float angleDifference =
-            treeAngle - playerAngle;
+            treeAngle - cameraAngle;
 
 
         // Normalize angle
@@ -137,6 +241,8 @@ void Game::renderTrees()
 
         float correctedTreeDistance = distance * std::cos(angleDifference);
 
+        if (correctedTreeDistance <= 0.1f)
+            continue;
 
         // Outside camera view
         if (std::abs(angleDifference) >
@@ -286,17 +392,19 @@ void Game::renderRocks()
     const auto& rocks = _world.getRocks();
     const auto& depthBuffer = _raycaster.getDepthBuffer();
 
-    sf::Vector2f playerPosition = _player.getPosition();
+    //sf::Vector2f playerPosition = _player.getPosition();
+    sf::Vector2f cameraPosition = _cameraPosition;
 
-    float playerAngle = _player.getAngle();
+    //float playerAngle = _player.getAngle();
+    float cameraAngle = _cameraAngle;
 
     for (const Rock& rock : rocks)
     {
         sf::Vector2f rockPosition = rock.getPosition();
 
-        float dx = rockPosition.x - playerPosition.x;
+        float dx = rockPosition.x - cameraPosition.x;
 
-        float dy = rockPosition.y - playerPosition.y;
+        float dy = rockPosition.y - cameraPosition.y;
 
         float distance = std::sqrt(dx * dx + dy * dy);
 
@@ -305,7 +413,7 @@ void Game::renderRocks()
 
         float rockAngle = std::atan2(dy, dx);
 
-        float angleDifference = rockAngle - playerAngle;
+        float angleDifference = rockAngle - cameraAngle;
 
         //keep angle between -PI and +PI
         while (angleDifference > PI)
@@ -333,7 +441,8 @@ void Game::renderRocks()
             centerX >= SCREEN_WIDTH)
             continue;
 
-        const int horizon = SCREEN_HEIGHT / 2;
+        const float horizon =
+            SCREEN_HEIGHT / 2.0f + _cameraPitch;
 
         // Physical size of the rock in world units
         float rockWorldHeight = 24.0f;
@@ -438,7 +547,7 @@ void Game::renderPlayer()
         std::atan2(dy, dx);
 
     float angleDifference =
-        playerWorldAngle - _angle;
+        playerWorldAngle - _cameraAngle;
 
     // Normalize angle
     while (angleDifference > PI)
@@ -492,8 +601,8 @@ void Game::renderPlayer()
     }
 
     // GROUND POSITION
-    const int horizon =
-        SCREEN_HEIGHT / 2;
+    const float horizon =
+        SCREEN_HEIGHT / 2.0f + _cameraPitch;
 
     float playerBottom =
         horizon +
@@ -587,11 +696,15 @@ void Game::render()
     _renderer.clear(sf::Color::Black);
 
     const int horizon = SCREEN_HEIGHT / 2;
+    float projectedHorizon = SCREEN_HEIGHT / 2.0f + _cameraPitch;
 
     // Draw sky
-    for (int y = 0; y < horizon; y++)
+    for (int y = 0; y < SCREEN_HEIGHT; y++)
     {
-        int blue = 180 + (y * 50 / horizon);
+        if (y >= projectedHorizon)
+            break;
+
+        int blue = 180 + (y * 50 / SCREEN_HEIGHT);
 
         for (int x = 0; x < SCREEN_WIDTH; x++)
         {
@@ -603,18 +716,30 @@ void Game::render()
     //sf::Vector2f playerPos = _player.getPosition();
     sf::Vector2f cameraPos = _cameraPosition;
 
-    float playerAngle = _player.getAngle();
+    //float playerAngle = _player.getAngle();
+    float cameraAngle = _cameraAngle;
 
-    float leftAngle = playerAngle - FOV / 2.0f;
+    float leftAngle = cameraAngle - FOV / 2.0f;
 
-    float rightAngle = playerAngle + FOV / 2.0f;
+    float rightAngle = cameraAngle + FOV / 2.0f;
 
     // Draw Grass Floor
+    int floorStart =
+        static_cast<int>(projectedHorizon) + 1;
 
-    for (int y = horizon + 1; y < SCREEN_HEIGHT; y++)
+    if (floorStart < 0)
+        floorStart = 0;
+
+    if (floorStart >= SCREEN_HEIGHT)
+        floorStart = SCREEN_HEIGHT - 1;
+
+    for (int y = floorStart; y < SCREEN_HEIGHT; y++)
     {
         // Distance from the camera
-        float distance = CAMERA_HEIGHT / static_cast<float>(y - horizon);
+        //float distance = CAMERA_HEIGHT / (static_cast<float>(y) - projectedHorizon);
+        float distance =
+            CAMERA_HEIGHT /
+            (static_cast<float>(y) - projectedHorizon);
 
         // Left side of camera
         //float leftX = playerPos.x + std::cos(leftAngle) * distance;
@@ -655,7 +780,7 @@ void Game::render()
         }
     }
 
-    _raycaster.castRays(_cameraPosition, _angle);
+    _raycaster.castRays(_cameraPosition, _cameraAngle, _cameraPitch);
 
     const std::vector<float>& depthBuffer =
         _raycaster.getDepthBuffer();
@@ -665,7 +790,8 @@ void Game::render()
         _houseRenderer.render(
             house,
             _cameraPosition,
-            _angle,
+            _cameraAngle,
+            _cameraPitch,
             depthBuffer
         );
     }

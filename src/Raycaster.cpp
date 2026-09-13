@@ -28,7 +28,8 @@ const std::vector<float>& Raycaster::getDepthBuffer() const
 
 void Raycaster::castRays(
     const sf::Vector2f& position,
-    float playerAngle)
+    float playerAngle,
+    float pitch)
 {
     const int NUM_RAYS = SCREEN_WIDTH;
 
@@ -190,17 +191,16 @@ void Raycaster::castRays(
             (Map::TILE_SIZE * 500.0f)
             / distance;
 
+        float horizon = SCREEN_HEIGHT / 2.0f + pitch;
 
         int wallTop =
             static_cast<int>(
-                SCREEN_HEIGHT / 2.0f -
-                wallHeight / 2.0f
+                horizon - wallHeight / 2.0f
                 );
 
         int wallBottom =
             static_cast<int>(
-                SCREEN_HEIGHT / 2.0f +
-                wallHeight / 2.0f
+                horizon + wallHeight / 2.0f
                 );
 
         float wallX;

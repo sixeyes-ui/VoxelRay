@@ -17,6 +17,7 @@ public:
         const House& house,
         const sf::Vector2f& cameraPosition,
         float cameraAngle,
+        float cameraPitch,
         const std::vector<float>& depthBuffer
     );
 

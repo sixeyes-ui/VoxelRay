@@ -13,6 +13,8 @@ Player::Player(float x, float y)
 	_moveSpeed = 200.0f;
 	_rotationSpeed = 2.0f;
 	_radius = 15.0f;
+    _walkAnimation.setFrameCount(3);
+    _walkAnimation.setFrameDuration(0.12f);
 }
 
 bool Player::canMove(float x, float y) const
@@ -50,7 +52,7 @@ bool Player::canMove(float x, float y) const
 	return true;
 }
 
-void Player::update(float deltaTime)
+void Player::update(float deltaTime, float cameraAngle)
 {
     // =========================
     // ROTATION
@@ -71,8 +73,8 @@ void Player::update(float deltaTime)
     // CAMERA DIRECTION
     // =========================
 
-    float dirX = std::cos(_angle);
-    float dirY = std::sin(_angle);
+    float dirX = std::cos(cameraAngle);
+    float dirY = std::sin(cameraAngle);
 
 
     // =========================
@@ -123,41 +125,33 @@ void Player::update(float deltaTime)
             moveY * moveY);
 
     if (length > 0.0f)
-    {
+    {       
         moveX /= length;
         moveY /= length;
 
+        // Player turns toward movement direction
+        _angle = std::atan2(moveY, moveX);
+
+        _walkAnimation.update(deltaTime);
 
         moveX *= _moveSpeed * deltaTime;
         moveY *= _moveSpeed * deltaTime;
 
+        float newX = _position.x + moveX;
+        float newY = _position.y + moveY;
 
-        float newX =
-            _position.x + moveX;
-
-        float newY =
-            _position.y + moveY;
-
-
-        // =========================
-        // COLLISION
-        // =========================
-
-        // Move X separately
-        // This allows wall sliding
-
+        // X collision
         if (canMove(newX, _position.y))
-        {
             _position.x = newX;
-        }
 
-
-        // Move Y separately
-
+        // Y collision
         if (canMove(_position.x, newY))
-        {
             _position.y = newY;
-        }
+    }
+    else
+    {
+        // Player isn't moving
+        _walkAnimation.reset();
     }
 }
 

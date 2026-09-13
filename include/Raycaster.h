@@ -14,7 +14,8 @@ public:
 
     void castRays(
         const sf::Vector2f& position,
-        float angle
+        float angle,
+        float pitch
     );
 
     const std::vector<float>& getDepthBuffer() const;

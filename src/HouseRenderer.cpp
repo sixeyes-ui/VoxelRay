@@ -17,6 +17,7 @@ void HouseRenderer::render(
     const House& house,
     const sf::Vector2f& camearPosition,
     float cameraAngle,
+    float cameraPitch,
     const std::vector<float>& depthBuffer)
 {
     sf::Vector2f playerPos = camearPosition;
@@ -99,13 +100,17 @@ void HouseRenderer::render(
                 (Map::TILE_SIZE * 500.0f) /
                 correctedDistance;
 
+            float horizon =
+                SCREEN_HEIGHT / 2.0f + cameraPitch;
+
             float wallBottom =
-                SCREEN_HEIGHT / 2.0f +
+                horizon +
                 wallHeight / 2.0f;
 
-            // Put window above the ground
+            // Window sits on the house wall
             float bottom =
-                SCREEN_HEIGHT / 2.0f + windowHeight * 0.3f;
+                wallBottom -
+                wallHeight * 0.20f;
 
             float top =
                 bottom -
@@ -227,8 +232,11 @@ void HouseRenderer::render(
         (Map::TILE_SIZE * 500.0f) /
         correctedDistance;
 
+    float horizon =
+        SCREEN_HEIGHT / 2.0f + cameraPitch;
+
     float bottom =
-        SCREEN_HEIGHT / 2.0f +
+        horizon + 
         wallHeight / 2.0f;
 
     float top =

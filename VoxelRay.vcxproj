@@ -134,6 +134,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Animation.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\House.cpp" />
     <ClCompile Include="src\HouseRenderer.cpp" />
@@ -147,6 +148,7 @@
     <ClCompile Include="src\World.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Animation.h" />
     <ClInclude Include="include\Config.h" />
     <ClInclude Include="include\Game.h" />
     <ClInclude Include="include\House.h" />

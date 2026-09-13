@@ -25,6 +25,11 @@ private:
     void renderRocks();
     void renderPlayer();
 
+    sf::Vector2f getSafeCameraPosition(
+        const sf::Vector2f& playerPosition,
+        const sf::Vector2f& desiredPosition
+    );
+
     sf::RenderWindow _window;
 
     Player    _player;
@@ -39,11 +44,19 @@ private:
 
     sf::Image _treeImage;
 
-    sf::Image _playerImage;
+    //sf::Image _playerImage;
+    sf::Texture _playerTexture;
     bool _playerLoaded;
 
     sf::Vector2f _cameraPosition;
     float        _cameraDistance;
+    float        _cameraAngle;
+    float        _cameraPitch;
+
+    float        _cameraSensitivity;
+    float        _pitchSensitivity;
+
+    sf::Vector2i _mouseCenter;
 
     float        _angle;
 
